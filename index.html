@@ -593,6 +593,13 @@ async function submitForm(){
 function newForm(){location.reload();}
 
 function showAdmin(show){
+  if(show){
+    const pwd = prompt('🔐 Ingresa la contraseña de administrador:');
+    if(pwd !== 'mSm*011097'){
+      alert('❌ Contraseña incorrecta. Acceso denegado.');
+      return;
+    }
+  }
   id('admin-panel').style.display=show?'block':'none';
   id('form-container').style.display=show?'none':'block';
   id('hero-section').style.display=show?'none':'block';
