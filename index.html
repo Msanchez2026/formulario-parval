@@ -599,6 +599,9 @@ function showAdmin(show){
   if(show){
     renderTable(); updateStats();
     if(scriptUrl){ id('script-url-input').value=scriptUrl; id('setup-instructions').style.display='none'; }
+  }
+  window.scrollTo({top:0});
+}
 
 function saveScriptUrl(){
   const url=id('script-url-input').value.trim();
