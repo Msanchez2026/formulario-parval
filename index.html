@@ -468,7 +468,8 @@
 const SCRIPT_URL_KEY = 'parval_script_url';
 let currentStep=1, workEntryCount=0, currentModalIdx=-1;
 let candidates=JSON.parse(localStorage.getItem('parval_candidates')||'[]');
-let scriptUrl=localStorage.getItem(SCRIPT_URL_KEY)||'';
+const FIXED_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzdncpGArxp2tClcpa1A85Dm_IWJj_TmX6AGXv0i-Wh7CZNDVGo_fqPK_19jONNKxUw9Q/exec';
+let scriptUrl=localStorage.getItem(SCRIPT_URL_KEY)||FIXED_SCRIPT_URL;
 
 function id(x){return document.getElementById(x);}
 
