@@ -95,11 +95,7 @@
   #success-screen p { color:var(--gray); margin-bottom:28px; line-height:1.6; }
 
   /* SETUP BANNER */
-  .setup-banner { background:#FEF3C7; border:1.5px solid var(--gold); border-radius:12px; padding:16px 20px; margin-bottom:20px; display:none; }
-  .setup-banner.show { display:block; }
-  .setup-banner strong { color:#92400E; font-size:.88rem; }
-  .setup-banner p { color:#78350F; font-size:.8rem; margin-top:4px; line-height:1.5; }
-  .setup-banner a { color:var(--gold-dark); font-weight:700; }
+
 
   /* ADMIN */
   #admin-panel { display:none; }
@@ -233,11 +229,7 @@
 
 <div class="container" id="form-container">
 
-  <!-- SETUP BANNER -->
-  <div class="setup-banner" id="setup-banner">
-    <strong>⚙️ Configuración pendiente</strong>
-    <p>Para recibir las respuestas en tu correo y Google Sheets, sigue las instrucciones en el panel de administración ⚙ → "Configurar conexión".</p>
-  </div>
+
 
   <!-- S1 -->
   <div class="section-card active" id="sec-1">
@@ -481,7 +473,6 @@ let scriptUrl=localStorage.getItem(SCRIPT_URL_KEY)||'';
 function id(x){return document.getElementById(x);}
 
 // Show setup banner on form if not configured
-if(!scriptUrl) id('setup-banner').classList.add('show');
 
 // Radio/Check
 document.querySelectorAll('.radio-group').forEach(g=>{
@@ -608,9 +599,6 @@ function showAdmin(show){
   if(show){
     renderTable(); updateStats();
     if(scriptUrl){ id('script-url-input').value=scriptUrl; id('setup-instructions').style.display='none'; }
-  }
-  window.scrollTo({top:0});
-}
 
 function saveScriptUrl(){
   const url=id('script-url-input').value.trim();
@@ -618,7 +606,7 @@ function saveScriptUrl(){
   scriptUrl=url;
   localStorage.setItem(SCRIPT_URL_KEY,url);
   id('connection-status').innerHTML='<span style="color:green">✅ ¡Conectado! Las próximas respuestas llegarán a tu correo y Google Sheets.</span>';
-  id('setup-banner').classList.remove('show');
+
   setTimeout(()=>{ id('setup-instructions').style.display='none'; },2000);
   showToast('¡Conexión guardada exitosamente!');
 }
