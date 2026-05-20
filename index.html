@@ -468,7 +468,7 @@
 const SCRIPT_URL_KEY = 'parval_script_url';
 let currentStep=1, workEntryCount=0, currentModalIdx=-1;
 let candidates=JSON.parse(localStorage.getItem('parval_candidates')||'[]');
-const FIXED_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzdncpGArxp2tClcpa1A85Dm_IWJj_TmX6AGXv0i-Wh7CZNDVGo_fqPK_19jONNKxUw9Q/exec';
+const FIXED_SCRIPT_URL='https://script.google.com/macros/s/AKfycbyzJQDdzTNaEdSjtAtSmsJvagkrASpXxV3wn2rZvF8Ss-jVY5UUSleA-9eUqpeKFIlDWA/exec';
 let scriptUrl=localStorage.getItem(SCRIPT_URL_KEY)||FIXED_SCRIPT_URL;
 
 function id(x){return document.getElementById(x);}
@@ -559,21 +559,21 @@ async function submitForm(){
   btn.disabled=true;
   id('sending-overlay').classList.add('show');
 
-  // Save locally always
-  candidates.push(data);
-  localStorage.setItem('parval_candidates',JSON.stringify(candidates));
-
-  // Send to Google Sheets if configured
+  // Send to Google Sheets (source of truth)
   if(scriptUrl){
     try {
       await fetch(scriptUrl, {
         method:'POST',
         mode:'no-cors',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(data)
+        body:JSON.stringify({...data, action:'submit'})
       });
     } catch(e){ console.log('Sheet sync error:', e); }
   }
+
+  // Also save locally as backup
+  candidates.push(data);
+  localStorage.setItem('parval_candidates',JSON.stringify(candidates));
 
   id('sending-overlay').classList.remove('show');
   btn.disabled=false;
@@ -584,7 +584,7 @@ async function submitForm(){
 
 function newForm(){location.reload();}
 
-function showAdmin(show){
+async function showAdmin(show){
   if(show){
     const pwd = prompt('🔐 Ingresa la contraseña de administrador:');
     if(pwd !== 'mSm*011097'){
@@ -598,10 +598,32 @@ function showAdmin(show){
   id('progress-wrap').style.display=show?'none':'flex';
   id('header-title-text').textContent=show?'Panel de Administración':'Únete al equipo PARVAL';
   if(show){
+    // Load candidates from Google Sheets
+    await loadCandidatesFromSheets();
     renderTable(); updateStats();
-    if(scriptUrl){ id('script-url-input').value=scriptUrl; id('setup-instructions').style.display='none'; }
+    if(scriptUrl){ id('setup-instructions').style.display='none'; }
   }
   window.scrollTo({top:0});
+}
+
+async function loadCandidatesFromSheets(){
+  if(!scriptUrl) return;
+  try {
+    id('cand-tbody').innerHTML='<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--gray)">⏳ Cargando candidatos...</td></tr>';
+    const response = await fetch(scriptUrl+'?action=getCandidates', {
+      method:'GET',
+      mode:'cors'
+    });
+    const data = await response.json();
+    if(data.success && data.candidates){
+      candidates = data.candidates;
+      localStorage.setItem('parval_candidates', JSON.stringify(candidates));
+    }
+  } catch(e){
+    console.log('Error loading from sheets:', e);
+    // Fall back to local storage
+    candidates = JSON.parse(localStorage.getItem('parval_candidates')||'[]');
+  }
 }
 
 function saveScriptUrl(){
@@ -651,7 +673,21 @@ function renderTable(){
   });
 }
 
-function changeStatus(i,v){candidates[i].status=v; localStorage.setItem('parval_candidates',JSON.stringify(candidates)); updateStats(); showToast('Estado: '+v);}
+function changeStatus(i,v){
+  candidates[i].status=v;
+  localStorage.setItem('parval_candidates',JSON.stringify(candidates));
+  updateStats();
+  showToast('Estado: '+v);
+  // Sync status to Google Sheets
+  if(scriptUrl && candidates[i].id){
+    fetch(scriptUrl, {
+      method:'POST',
+      mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'updateStatus', id:candidates[i].id, status:v})
+    }).catch(e=>console.log('Status sync error:',e));
+  }
+}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function openModal(idx){
@@ -701,15 +737,4 @@ function exportPDF(idx){
   const fld=(l,v)=>{if(!v)return; doc.setTextColor(100,100,100);doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.text(l+':',16,y); doc.setTextColor(44,44,44);doc.setFont('helvetica','normal'); const lines=doc.splitTextToSize(String(v),128); doc.text(lines,62,y); y+=lines.length*5+1; if(y>270){doc.addPage();y=20;}};
   sec('Información Personal'); fld('Nombre',c.nombre);fld('Cédula',c.cedula);fld('Fecha nacimiento',c.fecha_nac);fld('Género',c.genero);fld('Estado civil',c.estado_civil);fld('Dirección',c.direccion+(c.sector?', '+c.sector:''));fld('Teléfono',c.telefono);fld('Email',c.email);fld('Referido',c.tiene_referido+(c.nombre_referido?' – '+c.nombre_referido:''));y+=3;
   sec('Posición de Interés'); fld('Posición',c.posicion_interes);fld('Expectativa','RD$ '+c.expectativa_salarial);fld('Disponibilidad',c.disponibilidad);y+=3;
-  sec('Formación Académica'); fld('¿Estudiando?',c.estudiando);if(c.estudiando==='Si')fld('Horario',c.horario_estudios);fld('Carrera',c.carrera);fld('Grado',c.grado);fld('Institución',c.institucion);fld('Idiomas',c.idiomas);y+=3;
-  sec('Situación Laboral'); fld('¿Laborando?',c.laborando);if(c.laborando==='Si'){fld('Posición actual',c.posicion_actual);fld('Tiempo en empresa',c.tiempo_empresa);fld('Salario actual','RD$ '+c.salario_actual);fld('Funciones',c.funciones_actuales);fld('Beneficios',c.beneficios);}else fld('Razón de salida',c.razon_salida);y+=3;
-  if(c.historial&&c.historial.length){sec('Historial Laboral');c.historial.forEach((h,i)=>{doc.setTextColor(200,138,0);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.text('Experiencia #'+(i+1),16,y);y+=5;fld('Empresa',h.empresa);fld('Posición',h.posicion);fld('Tiempo',h.tiempo);fld('Funciones',h.funciones);y+=2;});}
-  const pages=doc.internal.getNumberOfPages();
-  for(let p=1;p<=pages;p++){doc.setPage(p);doc.setFillColor(44,44,44);doc.rect(0,287,210,10,'F');doc.setTextColor(150,150,150);doc.setFontSize(7);doc.text('PARVAL Puesto de Bolsa · Afiliado a la BVRD · Documento confidencial de Recursos Humanos',105,293,{align:'center'});doc.text('Pág. '+p+'/'+pages,196,293);}
-  doc.save('PARVAL_'+c.nombre.replace(/\s+/g,'_')+'_perfil.pdf');
-}
-
-addWorkEntry();
-</script>
-</body>
-</html>
+  sec('Formación Académica'); fld('¿Estudiando?',c.estudiando
